@@ -17,7 +17,7 @@ class Api::Hello::TwitterWebhookController < Api::BaseController
 
     response_token = generate_crc_response(consumer_secret, crc_token)
 
-    render json: { response_token: response_token }, status: 200
+    render json: { response_token: "sha256=#{response_token}" }, status: 200
   end
 
   def generate_crc_response(consumer_secret, crc_token)
