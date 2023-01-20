@@ -58,3 +58,7 @@
     interval: 1 minute
     class: Scheduler::SuspendedUserCleanupScheduler
     queue: scheduler
+  twitter_timeline_scheduler:
+    interval: 1 minute
+    class: Hello::TwitterTimelineScheduler
+    queue: scheduler
