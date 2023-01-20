@@ -7,5 +7,11 @@ class Hello::TwitterImportTruncatedWorker
 
   def perform(tweet_id)
     Rails.logger.info "Importing truncated tweet id=#{tweet_id}"
+
+    tweet = Hello::TwitterTimeline.fetch_tweet(tweet_id)
+
+    Rails.logger.info "Fetched tweet #{tweet_id} (truncated: #{tweet['truncated']}) by #{tweet['user']['screen_name']}: #{tweet['text']}"
+
+    Hello::TwitterImportCompleteWorker.perform_async(tweet)
   end
 end
