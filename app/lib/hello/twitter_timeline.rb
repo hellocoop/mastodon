@@ -3,9 +3,20 @@
 class Hello::TwitterTimeline
 
   def self.fetch_timeline
+    unless twitter_configured?
+      Rails.logger.info 'Twitter not configured'
+      return
+    end
+
     Rails.logger.info 'Fetching Twitter Timeline...'
 
-    response = twitter_access_token.request(:get, '/1.1/statuses/home_timeline.json')
+    response = twitter_access_token.request(:get, '/1.1/statuses/home_timeline.json?tweet_mode=extended')
+
+    if response.code != "200"
+      Rails.logger.error "Twitter Timeline fetch failed with code #{response.code}: #{response.body}"
+      return
+    end
+
     rsp = JSON.parse(response.body)
 
     Rails.logger.info "Fetched #{rsp.size} entries"
@@ -14,16 +25,22 @@ class Hello::TwitterTimeline
     count_truncated = 0
     count_complete = 0
     rsp.each do |tweet|
-      if tweet['lang'] == 'en'
-        if tweet['truncated']
-          Hello::TwitterImportTruncatedWorker.perform_async(tweet['id'])
-          count_truncated += 1
+      user = tweet['user']
+
+      if user_exists?(user)
+        if tweet['lang'] == 'en'
+          if tweet['truncated']
+            Hello::TwitterImportTruncatedWorker.perform_async(tweet['id'])
+            count_truncated += 1
+          else
+            Hello::TwitterImportCompleteWorker.perform_async(tweet)
+            count_complete += 1
+          end
         else
-          Hello::TwitterImportCompleteWorker.perform_async(tweet)
-          count_complete += 1
+          count_non_en += 1
         end
       else
-        count_non_en += 1
+        Hello::TwitterImportUserWorker.perform_async(user)
       end
     end
 
@@ -48,5 +65,13 @@ class Hello::TwitterTimeline
       ENV['TWITTER_ACCESS_TOKEN'],
       ENV['TWITTER_ACCESS_TOKEN_SECRET']
     )
+  end
+
+  def self.twitter_configured?
+    ENV['TWITTER_CONSUMER_KEY'].present? && ENV['TWITTER_CONSUMER_SECRET'].present? && ENV['TWITTER_ACCESS_TOKEN'].present? && ENV['TWITTER_ACCESS_TOKEN_SECRET'].present?
+  end
+
+  def self.user_exists?(user)
+    true # TODO
   end
 end
