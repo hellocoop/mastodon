@@ -21,13 +21,30 @@ class Hello::TwitterTimeline
 
     Rails.logger.info "Fetched #{rsp.size} entries"
 
+    users_queued_for_import = []
+    users_found = []
+
     count_non_en = 0
     count_truncated = 0
     count_complete = 0
     rsp.each do |tweet|
       user = tweet['user']
+      username = user['screen_name']
 
-      if user_exists?(user)
+      if users_queued_for_import.include?(username)
+        next
+      end
+
+      unless users_found.include?(username)
+        if user_exists?(username)
+          users_found << username
+        else
+          Hello::TwitterImportUserWorker.perform_async(user)
+          users_queued_for_import << username
+        end
+      end
+
+      if users_found.include?(username)
         if tweet['lang'] == 'en'
           if tweet['truncated']
             Hello::TwitterImportTruncatedWorker.perform_async(tweet['id'])
@@ -39,12 +56,10 @@ class Hello::TwitterTimeline
         else
           count_non_en += 1
         end
-      else
-        Hello::TwitterImportUserWorker.perform_async(user)
       end
     end
 
-    Rails.logger.info "Processed: #{count_complete} complete, #{count_truncated} truncated. Skipped: #{count_non_en} non English."
+    Rails.logger.info "Processed: #{count_complete} complete, #{count_truncated} truncated. Skipped: #{count_non_en} non English. Users: #{users_queued_for_import.size} queued for import, #{users_found.size} found."
   end
 
   def self.fetch_tweet(tweet_id)
@@ -71,7 +86,7 @@ class Hello::TwitterTimeline
     ENV['TWITTER_CONSUMER_KEY'].present? && ENV['TWITTER_CONSUMER_SECRET'].present? && ENV['TWITTER_ACCESS_TOKEN'].present? && ENV['TWITTER_ACCESS_TOKEN_SECRET'].present?
   end
 
-  def self.user_exists?(user)
-    true # TODO
+  def self.user_exists?(username)
+    Account.exists?(username: username, domain: nil)
   end
 end
