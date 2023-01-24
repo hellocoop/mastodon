@@ -6,6 +6,6 @@ class Hello::TwitterImportCompleteWorker
   sidekiq_options queue: 'pull'
 
   def perform(tweet)
-    Rails.logger.info "Importing complete tweet id=#{tweet['id']} by #{tweet['user']['screen_name']}: #{tweet['text']}"
+    Rails.logger.info "Importing complete tweet id=#{tweet['id']} by #{tweet['user']['screen_name']}: #{tweet['full_text']}"
   end
 end

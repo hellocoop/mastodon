@@ -8,11 +8,9 @@ class Hello::TwitterTimeline
       return
     end
 
-    Rails.logger.info 'Fetching Twitter Timeline...'
-
     response = twitter_access_token.request(:get, '/1.1/statuses/home_timeline.json?tweet_mode=extended')
 
-    if response.code != "200"
+    if response.code.to_i / 100 != 2
       Rails.logger.error "Twitter Timeline fetch failed with code #{response.code}: #{response.body}"
       return
     end
@@ -50,7 +48,7 @@ class Hello::TwitterTimeline
             Hello::TwitterImportTruncatedWorker.perform_async(tweet['id'])
             count_truncated += 1
           else
-            Hello::TwitterImportCompleteWorker.perform_async(tweet)
+            Hello::TwitterImportCompleteWorker.perform_async(normalize_tweet(tweet))
             count_complete += 1
           end
         else
@@ -129,5 +127,33 @@ class Hello::TwitterTimeline
     end
 
     user_url
+  end
+
+  def self.normalize_tweet(tweet)
+    {
+      'id' => tweet['id'],
+      'id_str' => tweet['id_str'],
+      'full_text' => normalize_tweet_text(tweet),
+      'user' => {
+        screen_name: tweet['user']['screen_name'],
+      },
+    }
+  end
+
+  def self.normalize_tweet_text(tweet)
+    text = tweet['full_text']
+
+    if text.present?
+      tweet['entities']['urls'].each do |entity_url|
+        short_url = entity_url['url']
+        expanded_url = entity_url['expanded_url']
+
+        if short_url.present? && expanded_url.present?
+          text.gsub!(short_url, expanded_url)
+        end
+      end
+    end
+
+    text
   end
 end
