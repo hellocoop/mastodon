@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'securerandom'
-
 class Hello::TwitterImportUserWorker
   include Sidekiq::Worker
 
@@ -13,8 +11,7 @@ class Hello::TwitterImportUserWorker
     user_params = {
       email: "bot+#{user['screen_name']}@verified.coop",
       agreement: true,
-      external: false,
-      password: SecureRandom.hex,
+      external: true, # no password has to be set if external
       account_attributes: {
         username: user['screen_name'],
         display_name: user['name'],
@@ -24,10 +21,13 @@ class Hello::TwitterImportUserWorker
         actor_type: 'Service',
         avatar_remote_url: user['profile_image_url_https'],
         header_remote_url: user['profile_banner_url'],
-
-        # TODO where should user['url'] go?
-        # uri: '',
-        # url: '',
+        fields: [
+          {
+            name: 'Home',
+            value: user['url'],
+            verified_at: Time.now.utc.iso8601,
+          },
+        ],
       },
     }
 
