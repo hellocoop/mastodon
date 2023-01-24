@@ -39,7 +39,7 @@ class Hello::TwitterTimeline
         if user_exists?(username)
           users_found << username
         else
-          Hello::TwitterImportUserWorker.perform_async(user)
+          Hello::TwitterImportUserWorker.perform_async(normalize_user(user))
           users_queued_for_import << username
         end
       end
@@ -88,5 +88,46 @@ class Hello::TwitterTimeline
 
   def self.user_exists?(username)
     Account.exists?(username: username, domain: nil)
+  end
+
+  def self.normalize_user(user)
+    user_data = {}
+    user_data['screen_name'] = user['screen_name']
+    user_data['name'] = user['name']
+    user_data['description'] = normalize_user_description(user)
+    user_data['url'] = normalize_user_url(user)
+    user_data['profile_image_url_https'] = user['profile_image_url_https']
+    user_data['profile_banner_url'] = user['profile_banner_url']
+
+    user_data
+  end
+
+  def self.normalize_user_description(user)
+    desc = user['description']
+
+    if desc.present?
+      user['entities']['description']['urls'].each do |entity_url|
+        short_url = entity_url['url']
+        expanded_url = entity_url['expanded_url']
+
+        if short_url.present? && expanded_url.present?
+          desc.gsub!(short_url, expanded_url)
+        end
+      end
+    end
+
+    desc
+  end
+
+  def self.normalize_user_url(user)
+    user_url = user['url']
+
+    user['entities']['url']['urls'].each do |entity_url|
+      if entity_url['url'] == user_url
+        return entity_url['expanded_url']
+      end
+    end
+
+    user_url
   end
 end
