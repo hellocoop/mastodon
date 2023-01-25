@@ -93,6 +93,7 @@ class Hello::TwitterTimeline
       'screen_name' => user['screen_name'],
       'name' => user['name'],
       'location' => user['location'],
+      'created_at' => user['created_at'],
       'description' => normalize_user_description(user),
       'url' => normalize_user_url(user),
       'profile_image_url_https' => user['profile_image_url_https'],

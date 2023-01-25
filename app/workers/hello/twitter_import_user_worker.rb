@@ -3,12 +3,17 @@
 class Hello::TwitterImportUserWorker
   include Sidekiq::Worker
 
-  sidekiq_options queue: 'pull', retry: 2
+  sidekiq_options queue: 'pull', retry: 1
 
   def perform(user)
     screen_name = user['screen_name']
 
     Rails.logger.info "Importing user #{screen_name}: #{user['name']}, #{user['url']}"
+
+    created_at = DateTime.now
+    if user['created_at'].present?
+      created_at = DateTime.parse(user['created_at'])
+    end
 
     user_params = {
       'email' => "bot+#{screen_name}@verified.coop",
@@ -16,6 +21,7 @@ class Hello::TwitterImportUserWorker
       'external' => true, # no password has to be set if external
       'account_attributes' => {
         'username' => screen_name,
+        'created_at' => created_at,
         'display_name' => user['name'],
         'discoverable' => true,
         'hide_collections' => true,

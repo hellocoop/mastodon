@@ -3,7 +3,7 @@
 class Hello::TwitterImportCompleteWorker
   include Sidekiq::Worker
 
-  sidekiq_options queue: 'pull', retry: 2
+  sidekiq_options queue: 'pull', retry: 1
 
   def perform(tweet)
     username = tweet['user']['screen_name']
