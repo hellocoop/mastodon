@@ -8,7 +8,7 @@ class Hello::TwitterTimeline
       return
     end
 
-    response = twitter_access_token.request(:get, '/1.1/statuses/home_timeline.json?tweet_mode=extended')
+    response = twitter_access_token.request(:get, '/1.1/statuses/home_timeline.json?tweet_mode=extended&count=200&exclude_replies=true')
 
     if response.code.to_i / 100 != 2
       Rails.logger.error "Twitter Timeline fetch failed with code #{response.code}: #{response.body}"
@@ -89,21 +89,21 @@ class Hello::TwitterTimeline
   end
 
   def self.normalize_user(user)
-    user_data = {}
-    user_data['screen_name'] = user['screen_name']
-    user_data['name'] = user['name']
-    user_data['description'] = normalize_user_description(user)
-    user_data['url'] = normalize_user_url(user)
-    user_data['profile_image_url_https'] = user['profile_image_url_https']
-    user_data['profile_banner_url'] = user['profile_banner_url']
-
-    user_data
+    {
+      'screen_name' => user['screen_name'],
+      'name' => user['name'],
+      'location' => user['location'],
+      'description' => normalize_user_description(user),
+      'url' => normalize_user_url(user),
+      'profile_image_url_https' => user['profile_image_url_https'],
+      'profile_banner_url' => user['profile_banner_url'],
+    }
   end
 
   def self.normalize_user_description(user)
     desc = user['description']
 
-    if desc.present?
+    if desc.present? && user['entities'].present? && user['entities']['description'].present? && user['entities']['description']['urls'].present?
       user['entities']['description']['urls'].each do |entity_url|
         short_url = entity_url['url']
         expanded_url = entity_url['expanded_url']
@@ -114,15 +114,19 @@ class Hello::TwitterTimeline
       end
     end
 
+    desc += "\n\n( account mirrored by https://verified.coop )"
+
     desc
   end
 
   def self.normalize_user_url(user)
     user_url = user['url']
 
-    user['entities']['url']['urls'].each do |entity_url|
-      if entity_url['url'] == user_url
-        return entity_url['expanded_url']
+    if user['entities'].present? && user['entities']['url'].present? && user['entities']['url']['urls'].present?
+      user['entities']['url']['urls'].each do |entity_url|
+        if entity_url['url'] == user_url
+          return entity_url['expanded_url']
+        end
       end
     end
 
@@ -155,5 +159,9 @@ class Hello::TwitterTimeline
     end
 
     text
+  end
+
+  def self.create_tweet_url(tweet)
+    return "https://twitter.com/#{tweet['user']['screen_name']}/status/#{tweet['id_str']}"
   end
 end

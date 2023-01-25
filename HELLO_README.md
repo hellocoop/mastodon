@@ -86,8 +86,8 @@ Finalise virtual machine setup (known issue that a few steps are missing):
 ```shell
 vagrant ssh
 cd /vagrant
-bundle install
 gem install bundler:2.3.26
+bundle install
 gem install foreman
 exit
 ```
@@ -110,6 +110,12 @@ Admin account credentials:
 * password: `mastodonadmin`
 
 Legacy sign-in form available at: http://mastodon.local/auth/sign_in
+
+### Troubleshoot Sidekiq and Postgres
+
+Both Sidekiq and Postgres have dashboards that are accessible to the `Owner` role only at:
+* http://mastodon.local/sidekiq/
+* http://mastodon.local/pghero/
 
 ## Image building
 

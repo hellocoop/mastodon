@@ -3,7 +3,7 @@
 class Hello::TwitterImportTruncatedWorker
   include Sidekiq::Worker
 
-  sidekiq_options queue: 'pull'
+  sidekiq_options queue: 'pull', retry: 2
 
   def perform(tweet_id)
     Rails.logger.info "Importing truncated tweet id=#{tweet_id}"
