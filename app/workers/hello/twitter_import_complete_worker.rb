@@ -20,7 +20,11 @@ class Hello::TwitterImportCompleteWorker
     a = Account.find_by(username: username)
 
     if a.present?
-      Status.create!(account: a, text: tweet['full_text'], language: 'en', url: tweet_url)
+      status = PostStatusService.new.call(a, text: tweet['full_text'], language: 'en')
+
+      status.url = tweet_url
+      status.save!
+
       Rails.logger.info "Tweet #{tweet['id_str']} imported."
     else
       Rails.logger.info "Tweet #{tweet['id_str']} cannot be imported. No corresponding account found: #{username}"
