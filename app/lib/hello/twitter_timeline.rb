@@ -2,17 +2,23 @@
 
 class Hello::TwitterTimeline
 
-  def self.fetch_timeline
+  def self.fetch_timeline(last_tweet_id)
+    latest_tweet_id = last_tweet_id
+
     unless twitter_configured?
       Rails.logger.info 'Twitter not configured'
-      return
+      return latest_tweet_id
     end
 
-    response = twitter_access_token.request(:get, '/1.1/statuses/home_timeline.json?tweet_mode=extended&count=200&exclude_replies=true')
+    since_id = ''
+    if last_tweet_id.present?
+      since_id = "&since_id=#{last_tweet_id}"
+    end
+    response = twitter_access_token.request(:get, "/1.1/statuses/home_timeline.json?tweet_mode=extended&count=200&exclude_replies=true#{since_id}")
 
     if response.code.to_i / 100 != 2
       Rails.logger.error "Twitter Timeline fetch failed with code #{response.code}: #{response.body}"
-      return
+      return latest_tweet_id
     end
 
     rsp = JSON.parse(response.body)
@@ -42,22 +48,30 @@ class Hello::TwitterTimeline
         end
       end
 
-      if users_found.include?(username)
-        if tweet['lang'] == 'en'
-          if tweet['truncated']
-            Hello::TwitterImportTruncatedWorker.perform_async(tweet['id'])
-            count_truncated += 1
-          else
-            Hello::TwitterImportCompleteWorker.perform_async(normalize_tweet(tweet))
-            count_complete += 1
-          end
+      next unless users_found.include?(username)
+
+      tweet_id = tweet['id']
+
+      if tweet_id.to_i > latest_tweet_id.to_i
+        latest_tweet_id = tweet_id
+      end
+
+      if tweet['lang'] == 'en'
+        if tweet['truncated']
+          Hello::TwitterImportTruncatedWorker.perform_async(tweet_id)
+          count_truncated += 1
         else
-          count_non_en += 1
+          Hello::TwitterImportCompleteWorker.perform_async(normalize_tweet(tweet))
+          count_complete += 1
         end
+      else
+        count_non_en += 1
       end
     end
 
     Rails.logger.info "Processed: #{count_complete} complete, #{count_truncated} truncated. Skipped: #{count_non_en} non English. Users: #{users_queued_for_import.size} queued for import, #{users_found.size} found."
+
+    latest_tweet_id
   end
 
   def self.fetch_tweet(tweet_id)
