@@ -118,7 +118,7 @@ class Hello::TwitterTimeline
   def self.normalize_user_description(user)
     desc = user['description']
 
-    if desc.present? && user['entities'].present? && user['entities']['description'].present? && user['entities']['description']['urls'].present?
+    if desc.present? && user.dig('entities', 'description', 'urls').present?
       user['entities']['description']['urls'].each do |entity_url|
         short_url = entity_url['url']
         expanded_url = entity_url['expanded_url']
@@ -137,7 +137,7 @@ class Hello::TwitterTimeline
   def self.normalize_user_url(user)
     user_url = user['url']
 
-    if user['entities'].present? && user['entities']['url'].present? && user['entities']['url']['urls'].present?
+    if user_url.present? && user.dig('entities', 'url', 'urls').present?
       user['entities']['url']['urls'].each do |entity_url|
         if entity_url['url'] == user_url
           return entity_url['expanded_url']
@@ -162,7 +162,7 @@ class Hello::TwitterTimeline
   def self.normalize_tweet_text(tweet)
     text = tweet['full_text']
 
-    if text.present?
+    if text.present? && tweet.dig('entities', 'urls').present?
       tweet['entities']['urls'].each do |entity_url|
         short_url = entity_url['url']
         expanded_url = entity_url['expanded_url']
@@ -173,10 +173,21 @@ class Hello::TwitterTimeline
       end
     end
 
+    if text.present? && tweet.dig('entities', 'media').present?
+      tweet['entities']['media'].each do |entity_url|
+        short_url = entity_url['url']
+        media_url = entity_url['media_url_https']
+
+        if short_url.present? && media_url.present?
+          text.gsub!(short_url, media_url)
+        end
+      end
+    end
+
     text
   end
 
   def self.create_tweet_url(tweet)
-    return "https://twitter.com/#{tweet['user']['screen_name']}/status/#{tweet['id_str']}"
+    "https://twitter.com/#{tweet['user']['screen_name']}/status/#{tweet['id_str']}"
   end
 end
