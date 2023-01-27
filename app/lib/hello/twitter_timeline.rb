@@ -29,6 +29,7 @@ class Hello::TwitterTimeline
     users_found = []
 
     count_non_en = 0
+    count_quote = 0
     count_truncated = 0
     count_complete = 0
     rsp.each do |tweet|
@@ -56,20 +57,26 @@ class Hello::TwitterTimeline
         latest_tweet_id = tweet_id
       end
 
-      if tweet['lang'] == 'en'
-        if tweet['truncated']
-          Hello::TwitterImportTruncatedWorker.perform_async(tweet_id)
-          count_truncated += 1
-        else
-          Hello::TwitterImportCompleteWorker.perform_async(normalize_tweet(tweet))
-          count_complete += 1
-        end
-      else
+      if tweet['lang'] != 'en'
         count_non_en += 1
+        next
+      end
+
+      if tweet['is_quote_status']
+        count_quote += 1
+        next
+      end
+
+      if tweet['truncated']
+        Hello::TwitterImportTruncatedWorker.perform_async(tweet_id)
+        count_truncated += 1
+      else
+        Hello::TwitterImportCompleteWorker.perform_async(normalize_tweet(tweet))
+        count_complete += 1
       end
     end
 
-    Rails.logger.info "Processed: #{count_complete} complete, #{count_truncated} truncated. Skipped: #{count_non_en} non English. Users: #{users_queued_for_import.size} queued for import, #{users_found.size} found."
+    Rails.logger.info "Processed: #{count_complete} complete, #{count_truncated} truncated. Skipped: #{count_non_en} non English, #{count_quote} quote. Users: #{users_queued_for_import.size} queued for import, #{users_found.size} found."
 
     latest_tweet_id
   end
