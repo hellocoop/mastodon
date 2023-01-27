@@ -110,7 +110,7 @@ class Hello::TwitterTimeline
       'created_at' => user['created_at'],
       'description' => normalize_user_description(user),
       'url' => normalize_user_url(user),
-      'profile_image_url_https' => user['profile_image_url_https'],
+      'profile_image_url_https' => original_profile_image(user['profile_image_url_https']),
       'profile_banner_url' => user['profile_banner_url'],
     }
   end
@@ -146,6 +146,11 @@ class Hello::TwitterTimeline
     end
 
     user_url
+  end
+
+  # see https://developer.twitter.com/en/docs/twitter-api/v1/accounts-and-users/user-profile-images-and-banners
+  def self.original_profile_image(profile_image_url)
+    profile_image_url.split('_normal.').join('.')
   end
 
   def self.normalize_tweet(tweet)
