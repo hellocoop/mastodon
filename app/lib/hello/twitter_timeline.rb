@@ -52,7 +52,7 @@ class Hello::TwitterTimeline
 
       tweet_id = tweet['id']
 
-      if tweet_id.to_i > latest_tweet_id.to_i
+      if latest_tweet_id.blank? || tweet_id.to_i > latest_tweet_id.to_i
         latest_tweet_id = tweet_id
       end
 
@@ -149,7 +149,7 @@ class Hello::TwitterTimeline
   end
 
   def self.normalize_tweet(tweet)
-    {
+    normalized_tweet = {
       'id' => tweet['id'],
       'id_str' => tweet['id_str'],
       'full_text' => normalize_tweet_text(tweet),
@@ -157,6 +157,24 @@ class Hello::TwitterTimeline
         screen_name: tweet['user']['screen_name'],
       },
     }
+
+    if tweet.dig('entities', 'media').present?
+      normalized_tweet['entities']['media'] = []
+
+      tweet['entities']['media'].each do |entity_url|
+        next unless entity_url['type'] == 'photo'
+
+        media_url = entity_url['media_url_https']
+
+        next if media_url.blank?
+
+        normalized_tweet['entities']['media'] << {
+          'media_url_https' => media_url,
+        }
+      end
+    end
+
+    normalized_tweet
   end
 
   def self.normalize_tweet_text(tweet)
@@ -177,9 +195,15 @@ class Hello::TwitterTimeline
       tweet['entities']['media'].each do |entity_url|
         short_url = entity_url['url']
         media_url = entity_url['media_url_https']
+        media_type = entity_url['type']
 
         if short_url.present? && media_url.present?
-          text.gsub!(short_url, media_url)
+          if media_type.present? && media_type == 'photo'
+            # remove media url from tweet, photo is imported as a media attachment
+            text.gsub!(short_url, '')
+          else
+            text.gsub!(short_url, media_url)
+          end
         end
       end
     end

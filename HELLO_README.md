@@ -86,9 +86,7 @@ Finalise virtual machine setup (known issue that a few steps are missing):
 ```shell
 vagrant ssh
 cd /vagrant
-gem install bundler:2.3.26
-bundle install
-gem install foreman
+gem install bundler:2.3.26 && bundle install && gem install foreman
 exit
 ```
 

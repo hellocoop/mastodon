@@ -10,22 +10,35 @@ class Hello::TwitterImportCompleteWorker
 
     Rails.logger.info "Importing complete tweet #{tweet['id_str']} by #{username}: #{tweet['full_text']}"
 
-    tweet_url = Hello::TwitterTimeline.create_tweet_url(tweet)
-
-    if Status.find_by(url: tweet_url).present?
-      Rails.logger.info "Tweet #{tweet['id_str']} already imported. Skipping."
-      return
-    end
-
     a = Account.find_by(username: username)
 
+    media_ids = []
+
     if a.present?
-      status = PostStatusService.new.call(a, text: tweet['full_text'], language: 'en', idempotency: tweet['id_str'])
+      if tweet.dig('entities', 'media').present?
+        tweet['entities']['media'].each do |entity_url|
+          Rails.logger.info "Importing media attachment #{entity_url['media_url_https']}"
+
+          m = MediaAttachment.create(
+            account: a,
+            remote_url: entity_url['media_url_https']
+          )
+          m.download_file!
+          m.save
+
+          media_ids << m.id
+        end
+      end
+
+      status = PostStatusService.new.call(
+        a,
+        text: tweet['full_text'],
+        media_ids: media_ids,
+        language: 'en',
+        idempotency: "tweet:#{tweet['id_str']}"
+      )
 
       if status.present?
-        status.url = tweet_url
-        status.save!
-
         Rails.logger.info "Tweet #{tweet['id_str']} imported."
       else
         Rails.logger.info "Tweet #{tweet['id_str']} not imported."
