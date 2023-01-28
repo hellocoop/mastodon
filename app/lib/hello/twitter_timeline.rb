@@ -25,6 +25,16 @@ class Hello::TwitterTimeline
 
     Rails.logger.info "Fetched #{rsp.size} entries"
 
+    if Rails.env.development?
+      twitter_folder = Rails.root.join('tmp', 'twitter')
+      FileUtils.mkdir_p(twitter_folder)
+
+      timestamp = TZInfo::Timezone.get('US/Pacific').now.strftime('%Y-%m-%d-%H-%M-%S')
+      File.open(twitter_folder.join("timeline_#{timestamp}_#{rsp.size}.json"), 'w') do |f|
+        f.puts JSON.pretty_generate(rsp)
+      end
+    end
+
     users_queued_for_import = []
     users_found = []
 
