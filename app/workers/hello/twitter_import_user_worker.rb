@@ -56,10 +56,10 @@ class Hello::TwitterImportUserWorker
       })
     end
 
-    user = User.new(user_params)
+    mastodon_user = User.new(user_params)
 
-    user.skip_confirmation!
-    user.save!
+    mastodon_user.skip_confirmation!
+    mastodon_user.save!
 
     Rails.logger.info "Imported #{user['screen_name']}"
   end
