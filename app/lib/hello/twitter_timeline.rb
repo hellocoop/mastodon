@@ -171,7 +171,9 @@ class Hello::TwitterTimeline
     }
 
     if tweet.dig('entities', 'media').present?
-      normalized_tweet['entities']['media'] = []
+      normalized_tweet['entities'] = {
+        'media' => [],
+      }
 
       tweet['entities']['media'].each do |entity_url|
         next unless entity_url['type'] == 'photo'
